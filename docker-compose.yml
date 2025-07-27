@@ -3,451 +3,112 @@ version: '3.8'
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
-    container_name: nati-postgres
+    image: postgres:15
+    container_name: natistore-postgres
     environment:
-      POSTGRES_DB: nati_main
+      POSTGRES_DB: natistore
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./pg-data:/var/lib/postgresql/data
     networks:
-      - nati-network
-    restart: unless-stopped
+      - natistore-network
 
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: nati-redis
+    container_name: natistore-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - nati-network
-    restart: unless-stopped
+      - natistore-network
 
-  # RudderStack CDP (Customer Data Platform)
-  rudderstack:
-    image: rudderlabs/rudder-server:latest
-    container_name: nati-rudderstack
-    environment:
-      - CONFIG_BACKEND_URL=http://localhost:9090
-      - WORKSPACE_TOKEN=${RUDDERSTACK_WORKSPACE_TOKEN}
-      - RUDDER_BACKEND_URL=http://localhost:8080
-    ports:
-      - "8080:8080"  # API Gateway
-      - "9090:9090"  # Config Backend
-    volumes:
-      - rudderstack_data:/data
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Elasticsearch (Search Engine)
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: nati-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-      - "9300:9300"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # MinIO (Object Storage & CDN)
-  minio:
-    image: minio/minio:latest
-    container_name: nati-minio
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-    ports:
-      - "9001:9000"  # API
-      - "9002:9001"  # Console
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Stripe Payment Processing (Mock/Test)
-  stripe-cli:
-    image: stripe/stripe-cli:latest
-    container_name: nati-stripe-cli
-    environment:
-      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
-    ports:
-      - "12111:12111"
-    command: listen --forward-to medusa-backend:9000/webhooks/stripe
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Prometheus (Monitoring)
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: nati-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Grafana (Observability Dashboard)
-  grafana:
-    image: grafana/grafana:latest
-    container_name: nati-grafana
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin123
-    ports:
-      - "3005:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Jaeger (Distributed Tracing)
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: nati-jaeger
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-    ports:
-      - "16686:16686"  # UI
-      - "14268:14268"  # HTTP
-      - "14250:14250"  # gRPC
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Medusa Backend (E-commerce)
+  # Medusa Backend
   medusa-backend:
     build:
-      context: ./services/medusa-backend
+      context: ./packages/medusa-backend
       dockerfile: Dockerfile
-    container_name: nati-medusa-backend
+    container_name: natistore-backend
     environment:
-      DATABASE_URL: postgres://postgres:password@postgres:5432/nati_main
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/natistore
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: your_jwt_secret_here
-      COOKIE_SECRET: your_cookie_secret_here
+      JWT_SECRET: your-jwt-secret
+      COOKIE_SECRET: your-cookie-secret
       NODE_ENV: development
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
-      RUDDERSTACK_URL: http://rudderstack:8080
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
     ports:
       - "9000:9000"
     depends_on:
       - postgres
       - redis
-      - rudderstack
-      - elasticsearch
-      - minio
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # AI Service
-  ai-service:
-    build:
-      context: ./services/ai-service
-      dockerfile: Dockerfile
-    container_name: nati-ai-service
-    environment:
-      NODE_ENV: development
-      AI_SERVICE_PORT: 3001
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: nati_ai
-      DB_USER: postgres
-      DB_PASSWORD: password
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      JWT_SECRET: your_jwt_secret_here
-      FRONTEND_URL: http://localhost:3000
-      RUDDERSTACK_URL: http://rudderstack:8080
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-    ports:
-      - "3001:3001"
-    depends_on:
-      - postgres
-      - redis
-      - rudderstack
-      - elasticsearch
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Analytics Service
-  analytics-service:
-    build:
-      context: ./services/analytics-service
-      dockerfile: Dockerfile
-    container_name: nati-analytics-service
-    environment:
-      NODE_ENV: development
-      ANALYTICS_SERVICE_PORT: 3002
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: nati_analytics
-      DB_USER: postgres
-      DB_PASSWORD: password
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_SECRET: your_jwt_secret_here
-      FRONTEND_URL: http://localhost:3000
-      RUDDERSTACK_URL: http://rudderstack:8080
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-    ports:
-      - "3002:3002"
-    depends_on:
-      - postgres
-      - redis
-      - rudderstack
-      - elasticsearch
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Communication Service
-  communication-service:
-    build:
-      context: ./services/communication-service
-      dockerfile: Dockerfile
-    container_name: nati-communication-service
-    environment:
-      NODE_ENV: development
-      COMMUNICATION_SERVICE_PORT: 3003
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: nati_communication
-      DB_USER: postgres
-      DB_PASSWORD: password
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_SECRET: your_jwt_secret_here
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
-      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
-      FRONTEND_URL: http://localhost:3000
-      RUDDERSTACK_URL: http://rudderstack:8080
-    ports:
-      - "3003:3003"
-    depends_on:
-      - postgres
-      - redis
-      - rudderstack
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Search Service (Elasticsearch API)
-  search-service:
-    build:
-      context: ./services/search-service
-      dockerfile: Dockerfile
-    container_name: nati-search-service
-    environment:
-      NODE_ENV: development
-      SEARCH_SERVICE_PORT: 3006
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      JWT_SECRET: your_jwt_secret_here
-      RUDDERSTACK_URL: http://rudderstack:8080
-    ports:
-      - "3006:3006"
-    depends_on:
-      - elasticsearch
-      - rudderstack
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # Strapi CMS
-  strapi-cms:
-    build:
-      context: ./services/strapi-cms
-      dockerfile: Dockerfile
-    container_name: nati-strapi-cms
-    environment:
-      DATABASE_CLIENT: postgres
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: nati_cms
-      DATABASE_USERNAME: postgres
-      DATABASE_PASSWORD: password
-      JWT_SECRET: your_jwt_secret_here
-      ADMIN_JWT_SECRET: your_admin_jwt_secret_here
-      APP_KEYS: your_app_keys_here
-      API_TOKEN_SALT: your_api_token_salt_here
-      TRANSFER_TOKEN_SALT: your_transfer_token_salt_here
-      NODE_ENV: development
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
-    ports:
-      - "1337:1337"
-    depends_on:
-      - postgres
-      - minio
-    networks:
-      - nati-network
-    restart: unless-stopped
-
-  # N8N Workflow Automation
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: nati-n8n
-    environment:
-      N8N_BASIC_AUTH_ACTIVE: true
-      N8N_BASIC_AUTH_USER: admin
-      N8N_BASIC_AUTH_PASSWORD: password
-      N8N_HOST: localhost
-      N8N_PORT: 5678
-      N8N_PROTOCOL: http
-      N8N_DATABASE_TYPE: postgresdb
-      N8N_DATABASE_POSTGRESDB_HOST: postgres
-      N8N_DATABASE_POSTGRESDB_PORT: 5432
-      N8N_DATABASE_POSTGRESDB_DATABASE: nati_n8n
-      N8N_DATABASE_POSTGRESDB_USER: postgres
-      N8N_DATABASE_POSTGRESDB_PASSWORD: password
-      N8N_REDIS_HOST: redis
-      N8N_REDIS_PORT: 6379
-      WEBHOOK_URL: http://localhost:5678
-      GENERIC_TIMEZONE: Asia/Kolkata
-    ports:
-      - "5678:5678"
     volumes:
-      - n8n_data:/home/node/.n8n
-    depends_on:
-      - postgres
-      - redis
+      - ./packages/medusa-backend:/app
+      - /app/node_modules
     networks:
-      - nati-network
-    restart: unless-stopped
+      - natistore-network
 
-  # Next.js Frontend (Admin Console)
-  admin-frontend:
+  # Storefront
+  storefront:
     build:
-      context: .
-      dockerfile: Dockerfile.admin
-    container_name: nati-admin-frontend
+      context: ./apps/storefront
+      dockerfile: Dockerfile
+    container_name: natistore-storefront
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
-      NEXT_PUBLIC_ANALYTICS_URL: http://localhost:3002
-      NEXT_PUBLIC_COMMUNICATION_URL: http://localhost:3003
-      NEXT_PUBLIC_MEDUSA_URL: http://localhost:9000
-      NEXT_PUBLIC_STRAPI_URL: http://localhost:1337
-      NEXT_PUBLIC_N8N_URL: http://localhost:5678
-      NEXT_PUBLIC_RUDDERSTACK_URL: http://localhost:8080
-      NEXT_PUBLIC_SEARCH_URL: http://localhost:3006
-      NEXT_PUBLIC_MINIO_URL: http://localhost:9001
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://medusa-backend:9000
+      NODE_ENV: development
     ports:
       - "3000:3000"
     depends_on:
-      - ai-service
-      - analytics-service
-      - communication-service
       - medusa-backend
-      - strapi-cms
-      - rudderstack
-      - search-service
+    volumes:
+      - ./apps/storefront:/app
+      - /app/node_modules
     networks:
-      - nati-network
-    restart: unless-stopped
+      - natistore-network
 
-  # E-commerce Frontend
-  ecommerce-frontend:
+  # Admin Dashboard
+  admin:
     build:
-      context: .
-      dockerfile: Dockerfile.ecommerce
-    container_name: nati-ecommerce-frontend
+      context: ./apps/admin
+      dockerfile: Dockerfile
+    container_name: natistore-admin
     environment:
-      NEXT_PUBLIC_MEDUSA_URL: http://localhost:9000
-      NEXT_PUBLIC_STRAPI_URL: http://localhost:1337
-      NEXT_PUBLIC_AI_URL: http://localhost:3001
-      NEXT_PUBLIC_RUDDERSTACK_URL: http://localhost:8080
-      NEXT_PUBLIC_SEARCH_URL: http://localhost:3006
-      NEXT_PUBLIC_MINIO_URL: http://localhost:9001
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://medusa-backend:9000
+      NODE_ENV: development
     ports:
-      - "3004:3000"
+      - "7001:7001"
     depends_on:
       - medusa-backend
-      - strapi-cms
-      - ai-service
-      - rudderstack
-      - search-service
+    volumes:
+      - ./apps/admin:/app
+      - /app/node_modules
     networks:
-      - nati-network
-    restart: unless-stopped
+      - natistore-network
 
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
-    container_name: nati-nginx
+    container_name: natistore-nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl
     depends_on:
-      - admin-frontend
-      - ecommerce-frontend
+      - storefront
+      - admin
       - medusa-backend
-      - ai-service
-      - analytics-service
-      - communication-service
-      - strapi-cms
-      - n8n
-      - rudderstack
-      - search-service
     networks:
-      - nati-network
-    restart: unless-stopped
+      - natistore-network
 
 volumes:
   postgres_data:
   redis_data:
-  n8n_data:
-  rudderstack_data:
-  elasticsearch_data:
-  minio_data:
-  prometheus_data:
-  grafana_data:
 
 networks:
-  nati-network:
+  natistore-network:
     driver: bridge 

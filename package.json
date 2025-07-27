@@ -1,33 +1,32 @@
 {
-  "name": "nati-website",
-  "version": "0.1.0",
+  "name": "natistore",
+  "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-            "ai-agent": "ts-node ai/simple-startup.ts",
-    "ai-agent:setup": "ts-node ai/simple-startup.ts --setup",
-    "ai-agent:start": "ts-node ai/simple-startup.ts --quick"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "dotenv": "^16.3.1",
-    "next": "15.3.5",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "ts-node": "^10.9.1",
-    "typescript": "^5"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "storefront:dev": "turbo run dev --filter=storefront",
+    "admin:dev": "turbo run dev --filter=admin",
+    "backend:dev": "turbo run dev --filter=medusa-backend",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
+    "turbo": "^1.10.0",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.5",
-    "tailwindcss": "^4"
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }
