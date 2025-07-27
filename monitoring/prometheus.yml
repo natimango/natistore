@@ -1,0 +1,103 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # NATI AI Service
+  - job_name: 'nati-ai-service'
+    static_configs:
+      - targets: ['ai-service:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # NATI Analytics Service
+  - job_name: 'nati-analytics-service'
+    static_configs:
+      - targets: ['analytics-service:3002']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # NATI Communication Service
+  - job_name: 'nati-communication-service'
+    static_configs:
+      - targets: ['communication-service:3003']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # NATI Search Service
+  - job_name: 'nati-search-service'
+    static_configs:
+      - targets: ['search-service:3006']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Medusa Backend
+  - job_name: 'nati-medusa-backend'
+    static_configs:
+      - targets: ['medusa-backend:9000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Strapi CMS
+  - job_name: 'nati-strapi-cms'
+    static_configs:
+      - targets: ['strapi-cms:1337']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # N8N Workflows
+  - job_name: 'nati-n8n'
+    static_configs:
+      - targets: ['n8n:5678']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # RudderStack
+  - job_name: 'nati-rudderstack'
+    static_configs:
+      - targets: ['rudderstack:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Elasticsearch
+  - job_name: 'nati-elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch:9200']
+    metrics_path: '/_prometheus/metrics'
+    scrape_interval: 10s
+
+  # Redis
+  - job_name: 'nati-redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # PostgreSQL
+  - job_name: 'nati-postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # MinIO
+  - job_name: 'nati-minio'
+    static_configs:
+      - targets: ['minio:9000']
+    metrics_path: '/minio/v2/metrics/cluster'
+    scrape_interval: 10s
+
+  # Node Exporter (System metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 10s 

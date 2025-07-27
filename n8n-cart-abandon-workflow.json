@@ -1,0 +1,84 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Cart Abandoned Trigger",
+      "type": "webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookPath": "/cart-abandoned"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/ai/suggest",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "{\"userId\": \"={{$json[\"userId\"]}}\"}"
+      },
+      "id": "aiSuggest",
+      "name": "AI Suggest",
+      "type": "httpRequest",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"channel\"]}}",
+              "operation": "equals",
+              "value2": "whatsapp"
+            }
+          ]
+        }
+      },
+      "id": "ifWhatsapp",
+      "name": "If WhatsApp",
+      "type": "if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.gupshup.io/sm/api/v1/msg",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "{\"message\": \"={{$json[\"message\"]}}\"}"
+      },
+      "id": "gupshup",
+      "name": "Send WhatsApp (Gupshup)",
+      "type": "httpRequest",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://api.mailersend.com/v1/email",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "{\"message\": \"={{$json[\"message\"]}}\"}"
+      },
+      "id": "mailersend",
+      "name": "Send Email (MailerSend)",
+      "type": "httpRequest",
+      "typeVersion": 1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "trigger": {
+      "main": [["aiSuggest"]]
+    },
+    "aiSuggest": {
+      "main": [["ifWhatsapp"]]
+    },
+    "ifWhatsapp": {
+      "main": [["gupshup", "mailersend"]]
+    }
+  }
+} 
